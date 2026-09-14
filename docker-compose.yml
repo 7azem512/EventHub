@@ -14,5 +14,22 @@ services:
     volumes:
       - event_db_data:/var/lib/postgresql/data
 
+
+
+  user_db:
+    image: postgres:16
+    container_name: eventhub_user_db
+    environment:
+      POSTGRES_DB: eventhub_user_db
+      POSTGRES_USER: eventhub
+      POSTGRES_PASSWORD: eventhub123
+    ports:
+      - "5434:5432"
+    volumes:
+      - user_db_data:/var/lib/postgresql/data
+
+
+
 volumes:
   event_db_data:
+  user_db_data:
