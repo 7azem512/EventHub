@@ -11,13 +11,12 @@ import org.springframework.data.domain.Pageable;
 import java.util.UUID;
 
 public interface EventService {
-    EventResponse createEvent(CreateEventRequest createEventRequest);
-    EventResponse updateEvent(UUID eventId, UpdateEventRequest updateEventRequest);
+    EventResponse createEvent(CreateEventRequest createEventRequest, UUID organizerId);
+    EventResponse updateEvent(UUID eventId, UpdateEventRequest request, UUID currentUserId, boolean admin);
     EventResponse getEventById(UUID eventId);
     Page<EventResponse> getAllEvents(Pageable pageable);
     Page<EventResponse> getEventByStatus(EventStatus status, Pageable pageable);
     Page<EventResponse> getEventByOrganizer(UUID organizerId, Pageable pageable);
     Page<EventResponse> getEventByCategory(UUID categoryId, Pageable pageable);
     Page<EventResponse> searchEvents(String search, Pageable pageable);
-    void deleteEvent(UUID eventId);
-}
+    void deleteEvent(UUID eventId, UUID currentUserId, boolean admin);}

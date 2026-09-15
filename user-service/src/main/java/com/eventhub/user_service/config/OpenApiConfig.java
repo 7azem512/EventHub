@@ -1,4 +1,4 @@
-package com.eventhub.event.config;
+package com.eventhub.user_service.config;
 
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
@@ -17,23 +17,19 @@ public class OpenApiConfig {
     private static final String OAUTH_SCHEME = "keycloak";
 
     @Bean
-    public OpenAPI eventServiceOpenAPI() {
+    public OpenAPI userServiceOpenAPI() {
 
         return new OpenAPI()
-
-                .info(new Info()
-                        .title("EventHub Event Service API")
-                        .version("v1")
-                        .description(
-                                "Event management, categories and ticket types API"
-                        )
+                .info(
+                        new Info()
+                                .title("EventHub User Service API")
+                                .version("v1")
+                                .description("User profile management API")
                 )
-
                 .addSecurityItem(
                         new SecurityRequirement()
                                 .addList(OAUTH_SCHEME)
                 )
-
                 .components(
                         new Components()
                                 .addSecuritySchemes(

@@ -16,6 +16,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -51,13 +53,27 @@ public class UserController {
     })
     @PostMapping
     public ResponseEntity<UserResponse> createUser(
-            @Valid @RequestBody CreateUserRequest request
-    ) {
-        UserResponse userResponse = userService.createUser(request);
+            @Valid @RequestBody CreateUserRequest request,
+            @AuthenticationPrincipal Jwt jwt
+            ) {
+        String keycloakId=jwt.getSubject();
+        UserResponse userResponse = userService.createUser(request, keycloakId);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(userResponse);
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<UserResponse> getCurrentUser(@AuthenticationPrincipal Jwt jwt) {
+        String keycloakId = jwt.getSubject();
+        return ResponseEntity.ok(userService.getCurrentUser(keycloakId));
+    }
+
+    @PutMapping("/me")
+    public ResponseEntity<UserResponse> updateCurrentUser(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody UpdateUserRequest request) {
+        String keycloakId = jwt.getSubject();
+        return ResponseEntity.ok(userService.updateCurrentUser(keycloakId, request));
     }
 
     @Operation(

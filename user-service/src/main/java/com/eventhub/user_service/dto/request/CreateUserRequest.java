@@ -14,13 +14,6 @@ import lombok.*;
 @Schema(description = "Request used to create a new user profile")
 public class CreateUserRequest {
 
-    @Schema(
-            description = "Unique user identifier from Keycloak",
-            example = "8f14e45f-ea6b-4f8c-9c8a-7b2f67d5e1a2"
-    )
-    @NotBlank(message = "Keycloak user ID cannot be null or empty")
-    @Size(max = 100, message = "Keycloak user ID must not exceed 100 characters")
-    private String keycloakUserId;
 
     @Schema(
             description = "User first name",

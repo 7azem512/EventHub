@@ -16,6 +16,7 @@ import com.eventhub.event.services.EventService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,22 +32,23 @@ public class EventServiceImpl implements EventService {
     private final EventMapper eventMapper;
     private final TicketTypeRepository ticketTypeRepository;
     @Override
-    public EventResponse createEvent(CreateEventRequest createEventRequest) {
+    public EventResponse createEvent(CreateEventRequest createEventRequest, UUID organizerId) {
         validateEventDates(createEventRequest.getStartDate(),
                 createEventRequest.getEndDate(),
                 createEventRequest.getBookingStartDate(),
                 createEventRequest.getBookingEndDate());
         Category category = categoryRepository.findById(createEventRequest.getCategoryId())
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
-        Event event = eventMapper.toEntity(createEventRequest, category);
+        Event event = eventMapper.toEntity(createEventRequest, category, organizerId);
         eventRepository.save(event);
         return eventMapper.toResponse(event);
     }
 
     @Override
-    public EventResponse updateEvent(UUID eventId, UpdateEventRequest updateEventRequest) {
+    public EventResponse updateEvent(UUID eventId, UpdateEventRequest updateEventRequest, UUID currentUserId, boolean admin) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new ResourceNotFoundException("Event not found"));
+        validateOwnership(event, currentUserId, admin);
         Category category=categoryRepository.findById(updateEventRequest.getCategoryId())
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
         validateEventDates(updateEventRequest.getStartDate(),
@@ -103,9 +105,10 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    public void deleteEvent(UUID eventId) {
+    public void deleteEvent(UUID eventId, UUID currentUserId, boolean admin) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new ResourceNotFoundException("Event not found"));
+        validateOwnership(event, currentUserId, admin);
         if (ticketTypeRepository.existsByEventId(eventId)) {
             throw new BusinessRuleException("Cannot delete event with associated ticket types");
         }
@@ -134,6 +137,18 @@ public class EventServiceImpl implements EventService {
         if (bookingEndDate.isAfter(startDate)) {
             throw new BusinessRuleException(
                     "Booking end date must be before or equal to event start date"
+            );
+        }
+    }
+
+    private void validateOwnership(Event event, UUID currentUserId, boolean admin) {
+        if (admin) {
+            return;
+        }
+
+        if (!event.getOrganizerId().equals(currentUserId)) {
+            throw new AccessDeniedException(
+                    "You are not allowed to modify this event"
             );
         }
     }

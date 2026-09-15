@@ -79,12 +79,6 @@ public class CreateEventRequest {
     @NotNull(message = "booking end date must not be null")
     private LocalDateTime bookingEndDate;
 
-    @Schema(
-            description = "Organizer identifier",
-            example = "550e8400-e29b-41d4-a716-446655440001"
-    )
-    @NotNull(message = "organizer id must not be null")
-    private UUID organizerId;
 
     @Schema(
             description = "Category identifier",

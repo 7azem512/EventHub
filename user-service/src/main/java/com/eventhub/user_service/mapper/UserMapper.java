@@ -8,9 +8,9 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class UserMapper {
-    public UserProfile toEntity(CreateUserRequest request) {
+    public UserProfile toEntity(CreateUserRequest request, String keycloakUserId) {
         return UserProfile.builder()
-                .keycloakUserId(request.getKeycloakUserId())
+                .keycloakUserId(keycloakUserId)
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
                 .email(request.getEmail())

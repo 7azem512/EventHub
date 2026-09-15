@@ -28,8 +28,46 @@ services:
     volumes:
       - user_db_data:/var/lib/postgresql/data
 
+  keycloak_db:
+    image: postgres:16
+    container_name: eventhub_keycloak_db
+
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak123
+
+    ports:
+      - "5435:5432"
+
+    volumes:
+      - keycloak_db_data:/var/lib/postgresql/data
+
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.3
+    container_name: eventhub_keycloak
+
+    command: start-dev
+
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin123
+
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak_db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak123
+
+    ports:
+      - "8083:8080"
+
+    depends_on:
+      - keycloak_db
+
 
 
 volumes:
   event_db_data:
   user_db_data:
+  keycloak_db_data:

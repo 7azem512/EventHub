@@ -9,10 +9,13 @@ import org.springframework.data.domain.Pageable;
 import java.util.UUID;
 
 public interface UserService {
-    UserResponse createUser(CreateUserRequest request);
+    UserResponse createUser(CreateUserRequest request, String keycloakUserId);
     UserResponse updateUser(UUID userId, UpdateUserRequest request);
     UserResponse getUser(UUID userId);
     UserResponse getUserByKeycloakId(String keycloakUserId);
     Page<UserResponse> getAllUsers(Pageable pageable);
+    UserResponse getCurrentUser(String keycloakUserId);
+    UserResponse updateCurrentUser(String keycloakUserId, UpdateUserRequest request);
+
 
 }

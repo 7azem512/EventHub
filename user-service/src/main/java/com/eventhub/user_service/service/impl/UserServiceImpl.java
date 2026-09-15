@@ -24,18 +24,39 @@ public class UserServiceImpl implements UserService {
     private final UserProfileRepository userRepository;
     private final UserMapper userMapper;
     @Override
-    public UserResponse createUser(CreateUserRequest request) {
-         if(userRepository.existsByKeycloakUserId(request.getKeycloakUserId()))
-             throw new DuplicateResourceException("User with keycloak id " + request.getKeycloakUserId() + " already exists");
+    public UserResponse createUser(CreateUserRequest request, String keycloakUserId) {
+         if(userRepository.existsByKeycloakUserId(keycloakUserId))
+             throw new DuplicateResourceException("User with keycloak id " + keycloakUserId + " already exists");
 
          if(userRepository.existsByEmailIgnoreCase(request.getEmail()))
              throw new DuplicateResourceException("User with email " + request.getEmail() + " already exists");
-        UserProfile user = userMapper.toEntity(request);
+        UserProfile user = userMapper.toEntity(request, keycloakUserId);
 
         UserProfile savedUser = userRepository.save(user);
 
         return userMapper.toResponse(savedUser);
 
+    }
+    @Override
+    @Transactional(readOnly = true)
+    public UserResponse getCurrentUser(String keycloakUserId) {
+
+        UserProfile user = userRepository.findByKeycloakUserId(keycloakUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("User profile not found"));
+
+        return userMapper.toResponse(user);
+    }
+
+    @Override
+    public UserResponse updateCurrentUser(String keycloakUserId, UpdateUserRequest request) {
+        UserProfile user = userRepository.findByKeycloakUserId(keycloakUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("User profile not found"));
+
+        if(!user.getEmail().equalsIgnoreCase(request.getEmail()) && userRepository.existsByEmailIgnoreCase(request.getEmail()))
+            throw new DuplicateResourceException("User with email " + request.getEmail() + " already exists");
+
+        userMapper.updateEntity(user, request);
+        return userMapper.toResponse(userRepository.save(user));
     }
 
 

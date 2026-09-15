@@ -16,6 +16,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -56,12 +59,10 @@ public class EventController {
             )
     })
     public ResponseEntity<EventResponse> create(
-            @Valid @RequestBody CreateEventRequest request
+            @Valid @RequestBody CreateEventRequest request,@AuthenticationPrincipal Jwt jwt
     ) {
-
-        EventResponse response =
-                eventService.createEvent(request);
-
+        UUID organizerId = UUID.fromString(jwt.getSubject());
+        EventResponse response = eventService.createEvent(request, organizerId);
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(response);
@@ -93,11 +94,21 @@ public class EventController {
     })
     public ResponseEntity<EventResponse> update(
             @PathVariable UUID eventId,
-            @Valid @RequestBody UpdateEventRequest request
+            @Valid @RequestBody UpdateEventRequest request,
+            @AuthenticationPrincipal Jwt jwt,
+            Authentication authentication
     ) {
+        UUID currentUserId =
+                UUID.fromString(jwt.getSubject());
+
+        boolean admin = authentication.getAuthorities()
+                .stream()
+                .anyMatch(authority ->
+                        authority.getAuthority().equals("ROLE_ADMIN")
+                );
 
         EventResponse response =
-                eventService.updateEvent(eventId, request);
+                eventService.updateEvent(eventId, request, currentUserId, admin);
 
         return ResponseEntity.ok(response);
     }
@@ -292,10 +303,20 @@ public class EventController {
             )
     })
     public ResponseEntity<Void> deleteEvent(
-            @PathVariable UUID eventId
+            @PathVariable UUID eventId,
+            @AuthenticationPrincipal Jwt jwt,
+            Authentication authentication
     ) {
+        UUID currentUserId =
+                UUID.fromString(jwt.getSubject());
 
-        eventService.deleteEvent(eventId);
+        boolean admin = authentication.getAuthorities()
+                .stream()
+                .anyMatch(authority ->
+                        authority.getAuthority().equals("ROLE_ADMIN")
+                );
+
+        eventService.deleteEvent(eventId, currentUserId, admin);
 
         return ResponseEntity
                 .noContent()

@@ -8,12 +8,14 @@ import com.eventhub.event.entity.Event;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.UUID;
+
 @Component
 @RequiredArgsConstructor
 public class EventMapper {
     private final CategoryMapper categoryMapper;
 
-    public Event toEntity(CreateEventRequest createEventRequest,Category category){
+    public Event toEntity(CreateEventRequest createEventRequest, Category category, UUID organizerId){
         return Event.builder()
                 .title(createEventRequest.getTitle())
                 .description(createEventRequest.getDescription())
@@ -22,7 +24,7 @@ public class EventMapper {
                 .endDate(createEventRequest.getEndDate())
                 .bookingStartDate(createEventRequest.getBookingStartDate())
                 .bookingEndDate(createEventRequest.getBookingEndDate())
-                .organizerId(createEventRequest.getOrganizerId())
+                .organizerId(organizerId)
                 .category(category)
                 .build();
     }
