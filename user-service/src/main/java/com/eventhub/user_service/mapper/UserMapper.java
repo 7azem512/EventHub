@@ -1,6 +1,6 @@
 package com.eventhub.user_service.mapper;
 
-import com.eventhub.user_service.dto.request.CreateUserRequest;
+
 import com.eventhub.user_service.dto.request.UpdateUserRequest;
 import com.eventhub.user_service.dto.response.UserResponse;
 import com.eventhub.user_service.entity.UserProfile;
@@ -8,15 +8,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class UserMapper {
-    public UserProfile toEntity(CreateUserRequest request, String keycloakUserId) {
-        return UserProfile.builder()
-                .keycloakUserId(keycloakUserId)
-                .firstName(request.getFirstName())
-                .lastName(request.getLastName())
-                .email(request.getEmail())
-                .phone(request.getPhone())
-                .build();
-    }
+
 
     public UserProfile updateEntity(UserProfile user, UpdateUserRequest request){
         user.setFirstName(request.getFirstName());

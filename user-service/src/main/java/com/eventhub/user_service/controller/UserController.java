@@ -1,6 +1,6 @@
 package com.eventhub.user_service.controller;
 
-import com.eventhub.user_service.dto.request.CreateUserRequest;
+
 import com.eventhub.user_service.dto.request.UpdateUserRequest;
 import com.eventhub.user_service.dto.response.UserResponse;
 import com.eventhub.user_service.service.UserService;
@@ -33,41 +33,18 @@ public class UserController {
 
     private final UserService userService;
 
-    @Operation(
-            summary = "Create user",
-            description = "Creates a new user profile"
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "201",
-                    description = "User created successfully"
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Invalid request data"
-            ),
-            @ApiResponse(
-                    responseCode = "409",
-                    description = "Email or Keycloak user ID already exists"
-            )
-    })
-    @PostMapping
-    public ResponseEntity<UserResponse> createUser(
-            @Valid @RequestBody CreateUserRequest request,
-            @AuthenticationPrincipal Jwt jwt
-            ) {
-        String keycloakId=jwt.getSubject();
-        UserResponse userResponse = userService.createUser(request, keycloakId);
 
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(userResponse);
-    }
 
     @GetMapping("/me")
-    public ResponseEntity<UserResponse> getCurrentUser(@AuthenticationPrincipal Jwt jwt) {
-        String keycloakId = jwt.getSubject();
-        return ResponseEntity.ok(userService.getCurrentUser(keycloakId));
+    public ResponseEntity<UserResponse> getCurrentUser(@AuthenticationPrincipal Jwt jwt)
+    {
+        String keycloakUserId = jwt.getSubject();
+        String firstName = jwt.getClaimAsString("given_name");
+        String lastName = jwt.getClaimAsString("family_name");
+        String email = jwt.getClaimAsString("email");
+
+        UserResponse response = userService.getOrCreateCurrentUser(keycloakUserId, firstName, lastName, email);
+        return ResponseEntity.ok(response);
     }
 
     @PutMapping("/me")

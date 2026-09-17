@@ -48,10 +48,9 @@ public class OpenApiConfig {
                                                                                 )
                                                                                 .scopes(
                                                                                         new Scopes()
-                                                                                                .addString(
-                                                                                                        "openid",
-                                                                                                        "OpenID Connect"
-                                                                                                )
+                                                                                                .addString("openid", "OpenID Connect")
+                                                                                                .addString("profile", "User profile")
+                                                                                                .addString("email", "User email")
                                                                                 )
                                                                 )
                                                 )

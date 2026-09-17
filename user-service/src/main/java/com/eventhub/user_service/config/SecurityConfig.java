@@ -56,11 +56,7 @@ public class SecurityConfig {
                         )
                         .permitAll()
 
-                        .requestMatchers(
-                                HttpMethod.POST,
-                                "/api/users"
-                        )
-                        .authenticated()
+
 
                         .requestMatchers(
                                 "/api/users/me"

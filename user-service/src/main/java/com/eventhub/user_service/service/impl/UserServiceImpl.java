@@ -1,6 +1,5 @@
 package com.eventhub.user_service.service.impl;
 
-import com.eventhub.user_service.dto.request.CreateUserRequest;
 import com.eventhub.user_service.dto.request.UpdateUserRequest;
 import com.eventhub.user_service.dto.response.UserResponse;
 import com.eventhub.user_service.entity.UserProfile;
@@ -23,28 +22,40 @@ import java.util.UUID;
 public class UserServiceImpl implements UserService {
     private final UserProfileRepository userRepository;
     private final UserMapper userMapper;
+
+
     @Override
-    public UserResponse createUser(CreateUserRequest request, String keycloakUserId) {
-         if(userRepository.existsByKeycloakUserId(keycloakUserId))
-             throw new DuplicateResourceException("User with keycloak id " + keycloakUserId + " already exists");
+    @Transactional
+    public UserResponse getOrCreateCurrentUser(
+            String keycloakUserId,
+            String firstName,
+            String lastName,
+            String email
+    ) {
 
-         if(userRepository.existsByEmailIgnoreCase(request.getEmail()))
-             throw new DuplicateResourceException("User with email " + request.getEmail() + " already exists");
-        UserProfile user = userMapper.toEntity(request, keycloakUserId);
+        return userRepository
+                .findByKeycloakUserId(keycloakUserId)
+                .map(userMapper::toResponse)
+                .orElseGet(() -> {
 
-        UserProfile savedUser = userRepository.save(user);
+                    if (userRepository.existsByEmailIgnoreCase(email)) {
+                        throw new DuplicateResourceException(
+                                "A user profile already exists with email: " + email
+                        );
+                    }
 
-        return userMapper.toResponse(savedUser);
+                    UserProfile user = UserProfile.builder()
+                            .keycloakUserId(keycloakUserId)
+                            .firstName(firstName)
+                            .lastName(lastName)
+                            .email(email)
+                            .build();
 
-    }
-    @Override
-    @Transactional(readOnly = true)
-    public UserResponse getCurrentUser(String keycloakUserId) {
+                    UserProfile savedUser =
+                            userRepository.save(user);
 
-        UserProfile user = userRepository.findByKeycloakUserId(keycloakUserId)
-                .orElseThrow(() -> new ResourceNotFoundException("User profile not found"));
-
-        return userMapper.toResponse(user);
+                    return userMapper.toResponse(savedUser);
+                });
     }
 
     @Override
