@@ -77,8 +77,24 @@ services:
     volumes:
       - media_db_data:/var/lib/postgresql/data
 
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: eventhub_minio
+    command: server /data --console-address ":9001"
+
+    environment:
+      MINIO_ROOT_USER: eventhub
+      MINIO_ROOT_PASSWORD: eventhub123
+
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+    volumes:
+      - minio_data:/data
 volumes:
   event_db_data:
   user_db_data:
   keycloak_db_data:
   media_db_data:
+  minio_data:

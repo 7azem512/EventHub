@@ -23,4 +23,50 @@ public class GlobalExceptionHandler {
                         "message",ex.getMessage(),
                         "path",request.getRequestURI()));
     }
+
+    @ExceptionHandler(InvalidMediaFileException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidMediaFile(InvalidMediaFileException ex, HttpServletRequest request)
+    {
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(Map.of(
+                        "timestamp", LocalDateTime.now(),
+                        "status", 400,
+                        "error", "Bad Request",
+                        "message", ex.getMessage(),
+                        "path", request.getRequestURI()
+                ));
+    }
+
+    @ExceptionHandler(MediaStorageException.class)
+    public ResponseEntity<Map<String, Object>> handleMediaStorage(MediaStorageException ex, HttpServletRequest request)
+    {
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of(
+                        "timestamp", LocalDateTime.now(),
+                        "status", 500,
+                        "error", "Storage Error",
+                        "message", ex.getMessage(),
+                        "path", request.getRequestURI()
+                ));
+    }
+
+    @ExceptionHandler(MediaAccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleMediaAccessDenied(
+            MediaAccessDeniedException ex,
+            HttpServletRequest request
+    ) {
+
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(Map.of(
+                        "timestamp", LocalDateTime.now(),
+                        "status", 403,
+                        "error", "Forbidden",
+                        "message", ex.getMessage(),
+                        "path", request.getRequestURI()
+                ));
+    }
 }
