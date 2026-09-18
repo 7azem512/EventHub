@@ -1,4 +1,7 @@
 package com.eventhub.media.exception;
 
-public class MediaNotFoundException {
+public class MediaNotFoundException extends RuntimeException{
+    public MediaNotFoundException(String message) {
+        super(message);
+    }
 }

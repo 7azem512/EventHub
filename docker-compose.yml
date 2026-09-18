@@ -65,9 +65,20 @@ services:
     depends_on:
       - keycloak_db
 
-
+  media-db:
+    image: postgres:16
+    container_name: eventhub_media_db
+    environment:
+      POSTGRES_DB: eventhub_media_db
+      POSTGRES_USER: eventhub
+      POSTGRES_PASSWORD: eventhub123
+    ports:
+      - "5436:5432"
+    volumes:
+      - media_db_data:/var/lib/postgresql/data
 
 volumes:
   event_db_data:
   user_db_data:
   keycloak_db_data:
+  media_db_data:
