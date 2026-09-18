@@ -77,6 +77,18 @@ services:
     volumes:
       - media_db_data:/var/lib/postgresql/data
 
+
+  booking-db:
+    image: postgres:16
+    container_name: eventhub_booking_db
+    environment:
+      POSTGRES_DB: eventhub_booking_db
+      POSTGRES_USER: eventhub
+      POSTGRES_PASSWORD: eventhub123
+    ports:
+      - "5437:5432"
+    volumes:
+      - booking_db_data:/var/lib/postgresql/data
   minio:
     image: quay.io/minio/minio:latest
     container_name: eventhub_minio
@@ -98,3 +110,4 @@ volumes:
   keycloak_db_data:
   media_db_data:
   minio_data:
+  booking_db_data:
