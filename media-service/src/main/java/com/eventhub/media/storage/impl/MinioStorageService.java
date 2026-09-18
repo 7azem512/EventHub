@@ -1,5 +1,6 @@
 package com.eventhub.media.storage.impl;
 
+import com.eventhub.media.enums.StorageProvider;
 import com.eventhub.media.exception.MediaNotFoundException;
 import com.eventhub.media.exception.MediaStorageException;
 import com.eventhub.media.storage.StorageService;
@@ -19,7 +20,10 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = "storage.provider", havingValue = "minio", matchIfMissing = true)
+@ConditionalOnProperty(
+        name = "minio.enabled",
+        havingValue = "true"
+)
 public class MinioStorageService implements StorageService {
     private final MinioClient minioClient;
 
@@ -62,6 +66,11 @@ public class MinioStorageService implements StorageService {
         }catch (Exception ex) {
             throw new MediaStorageException("Error occurred while deleting file", ex);
         }
+    }
+
+    @Override
+    public StorageProvider getProvider() {
+        return StorageProvider.MINIO;
     }
 
     @Override

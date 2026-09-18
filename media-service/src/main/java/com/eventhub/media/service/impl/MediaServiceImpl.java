@@ -11,7 +11,9 @@ import com.eventhub.media.mapper.MediaMapper;
 import com.eventhub.media.repository.MediaFileRepository;
 import com.eventhub.media.service.MediaService;
 import com.eventhub.media.storage.StorageService;
+import com.eventhub.media.storage.StorageServiceFactory;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -23,9 +25,13 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Transactional
 public class MediaServiceImpl implements MediaService {
+
     private final MediaFileRepository mediaFileRepository;
     private final MediaMapper mediaMapper;
-    private final StorageService storageService;
+    private final StorageServiceFactory storageServiceFactory;
+
+    @Value("${storage.provider}")
+    private String activeStorageProvider;
 
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024;
 
@@ -33,24 +39,49 @@ public class MediaServiceImpl implements MediaService {
     @Override
     @Transactional(readOnly = true)
     public MediaResponse getMediaById(UUID id) {
+
         MediaFile mediaFile = mediaFileRepository.findById(id)
-                .orElseThrow(() -> new MediaNotFoundException("Media not found with id: " + id));
+                .orElseThrow(() ->
+                        new MediaNotFoundException(
+                                "Media not found with id: " + id
+                        )
+                );
+
         return mediaMapper.toResponse(mediaFile);
     }
 
+
     @Override
+    @Transactional(readOnly = true)
     public List<MediaResponse> getMediaByUserId(UUID userId) {
+
         return mediaFileRepository.findByUploadedBy(userId)
                 .stream()
                 .map(mediaMapper::toResponse)
                 .toList();
     }
 
+
     @Override
-    public MediaResponse uploadMedia(MultipartFile file, UUID userId) {
+    public MediaResponse uploadMedia(
+            MultipartFile file,
+            UUID userId
+    ) {
+
         validateFile(file);
 
-        String storageKey = storageService.upload(file, userId);
+        StorageProvider provider =
+                StorageProvider.valueOf(
+                        activeStorageProvider
+                                .trim()
+                                .toUpperCase()
+                );
+
+        StorageService storageService =
+                storageServiceFactory.get(provider);
+
+        String storageKey =
+                storageService.upload(file, userId);
 
         try {
 
@@ -59,7 +90,7 @@ public class MediaServiceImpl implements MediaService {
                     .storageKey(storageKey)
                     .contentType(file.getContentType())
                     .size(file.getSize())
-                    .storageProvider(StorageProvider.MINIO)
+                    .storageProvider(provider)
                     .uploadedBy(userId)
                     .build();
 
@@ -71,8 +102,11 @@ public class MediaServiceImpl implements MediaService {
         } catch (RuntimeException ex) {
 
             try {
+
                 storageService.delete(storageKey);
+
             } catch (RuntimeException cleanupException) {
+
                 ex.addSuppressed(cleanupException);
             }
 
@@ -82,14 +116,25 @@ public class MediaServiceImpl implements MediaService {
 
 
     @Override
+    @Transactional(readOnly = true)
     public MediaUrlResponse getMediaUrl(UUID id) {
 
         MediaFile mediaFile = mediaFileRepository.findById(id)
-                .orElseThrow(() -> new MediaNotFoundException("Media file not found with id: " +id));
+                .orElseThrow(() ->
+                        new MediaNotFoundException(
+                                "Media file not found with id: " + id
+                        )
+                );
 
-        String url = storageService.generateAccessUrl(
-                mediaFile.getStorageKey()
-        );
+        StorageService storageService =
+                storageServiceFactory.get(
+                        mediaFile.getStorageProvider()
+                );
+
+        String url =
+                storageService.generateAccessUrl(
+                        mediaFile.getStorageKey()
+                );
 
         return new MediaUrlResponse(
                 mediaFile.getId(),
@@ -97,8 +142,8 @@ public class MediaServiceImpl implements MediaService {
         );
     }
 
+
     @Override
-    @Transactional
     public void deleteMedia(
             UUID id,
             UUID currentUserId,
@@ -106,7 +151,11 @@ public class MediaServiceImpl implements MediaService {
     ) {
 
         MediaFile mediaFile = mediaFileRepository.findById(id)
-                .orElseThrow(() -> new MediaNotFoundException("Media file not found with id: " + id));
+                .orElseThrow(() ->
+                        new MediaNotFoundException(
+                                "Media file not found with id: " + id
+                        )
+                );
 
         if (!admin &&
                 !mediaFile.getUploadedBy().equals(currentUserId)) {
@@ -114,22 +163,31 @@ public class MediaServiceImpl implements MediaService {
             throw new MediaAccessDeniedException();
         }
 
+        StorageService storageService =
+                storageServiceFactory.get(
+                        mediaFile.getStorageProvider()
+                );
+
         mediaFileRepository.delete(mediaFile);
         mediaFileRepository.flush();
 
-        storageService.delete(mediaFile.getStorageKey());
+        storageService.delete(
+                mediaFile.getStorageKey()
+        );
     }
 
 
     private void validateFile(MultipartFile file) {
 
         if (file == null || file.isEmpty()) {
+
             throw new InvalidMediaFileException(
                     "File cannot be empty"
             );
         }
 
         if (file.getSize() > MAX_FILE_SIZE) {
+
             throw new InvalidMediaFileException(
                     "File size cannot exceed 10 MB"
             );
