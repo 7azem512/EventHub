@@ -15,4 +15,5 @@ public interface BookingService {
 
     List<BookingResponse> getBookingsByEventId(UUID eventId, UUID currentUserId, boolean admin);
     BookingResponse cancelBooking(UUID bookingId, UUID currentUserId,boolean admin);
+    void expireBooking(UUID bookingId);
 }

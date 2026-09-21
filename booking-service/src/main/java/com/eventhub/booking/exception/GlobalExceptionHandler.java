@@ -156,5 +156,20 @@ public class GlobalExceptionHandler {
     }
 
 
+    @ExceptionHandler(InsufficientCapacityException.class)
+    public ResponseEntity<ErrorResponse> handleInsufficientCapacityException(
+            InsufficientCapacityException ex,
+            HttpServletRequest request) {
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.CONFLICT.value())
+                .error(HttpStatus.CONFLICT.getReasonPhrase())
+                .message(ex.getMessage())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+    }
+
 
 }

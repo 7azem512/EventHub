@@ -104,6 +104,15 @@ services:
 
     volumes:
       - minio_data:/data
+
+
+  redis:
+    image: redis:7-alpine
+    container_name: eventhub-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --notify-keyspace-events Ex
+
 volumes:
   event_db_data:
   user_db_data:
