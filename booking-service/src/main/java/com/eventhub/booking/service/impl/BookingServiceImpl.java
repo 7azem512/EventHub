@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 @Service
@@ -42,23 +43,28 @@ public class BookingServiceImpl implements BookingService {
     @Override
     public BookingResponse createBooking(CreateBookingRequest request, UUID currentUserId) {
 
-        TicketTypeInfo ticketTypeInfo =
-                eventCatalogClient.getTicketTypeInfo(
-                        request.getEventId(),
-                        request.getTicketTypeId()
-                );
+        EventInfo eventInfo = eventCatalogClient.getEventInfo(request.getEventId());
 
-        boolean reserved = reservedTicketCounterService.reserveTickets(
-                request.getTicketTypeId(),
-                request.getQuantity(),
-                ticketTypeInfo.getCapacity()
-        );
+        if (!"PUBLISHED".equals(eventInfo.getStatus())) {
+            throw new InvalidBookingStateException("Event is not published and cannot accept bookings");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+
+        if (now.isBefore(eventInfo.getBookingStartDate())) {
+            throw new InvalidBookingStateException("Booking has not started yet for this event");
+        }
+
+        if (now.isAfter(eventInfo.getBookingEndDate())) {
+            throw new InvalidBookingStateException("Booking has already ended for this event");
+        }
+
+        TicketTypeInfo ticketTypeInfo = eventCatalogClient.getTicketTypeInfo(request.getEventId(), request.getTicketTypeId());
+
+        boolean reserved = reservedTicketCounterService.reserveTickets(request.getTicketTypeId(), request.getQuantity(), ticketTypeInfo.getCapacity());
 
         if (!reserved) {
-            throw new InsufficientCapacityException(
-                    "Not enough tickets available for ticket type: "
-                            + request.getTicketTypeId()
-            );
+            throw new InsufficientCapacityException("Not enough tickets available for ticket type: " + request.getTicketTypeId());
         }
 
         UUID ticketTypeId = request.getTicketTypeId();
@@ -70,12 +76,8 @@ public class BookingServiceImpl implements BookingService {
 
                     @Override
                     public void afterCompletion(int status) {
-
                         if (status == TransactionSynchronization.STATUS_ROLLED_BACK) {
-                            reservedTicketCounterService.releaseTickets(
-                                    ticketTypeId,
-                                    quantity
-                            );
+                            reservedTicketCounterService.releaseTickets(ticketTypeId, quantity);
                         }
                     }
                 }
