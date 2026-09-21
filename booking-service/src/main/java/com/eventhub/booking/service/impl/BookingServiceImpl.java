@@ -35,6 +35,10 @@ public class BookingServiceImpl implements BookingService {
     private final EventCatalogClient eventCatalogClient;
     private final ReservationService reservationService;
     private final ReservedTicketCounterService reservedTicketCounterService;
+
+
+
+
     @Override
     public BookingResponse createBooking(CreateBookingRequest request, UUID currentUserId) {
 
@@ -147,11 +151,7 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    public BookingResponse cancelBooking(
-            UUID bookingId,
-            UUID currentUserId,
-            boolean admin
-    ) {
+    public BookingResponse cancelBooking(UUID bookingId,  UUID currentUserId, boolean admin) {
 
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() ->
@@ -207,18 +207,13 @@ public class BookingServiceImpl implements BookingService {
     @Override
     public void expireBooking(UUID bookingId) {
 
-        Booking booking = bookingRepository.findById(bookingId)
-                .orElse(null);
+        Booking booking = bookingRepository.findById(bookingId).orElse(null);
 
         if (booking == null) {
             return;
         }
 
-        int updatedRows = bookingRepository.updateStatusIfCurrent(
-                bookingId,
-                BookingStatus.PENDING,
-                BookingStatus.EXPIRED
-        );
+        int updatedRows = bookingRepository.updateStatusIfCurrent(bookingId, BookingStatus.PENDING, BookingStatus.EXPIRED);
 
         if (updatedRows == 0) {
             return;
@@ -232,13 +227,39 @@ public class BookingServiceImpl implements BookingService {
 
                     @Override
                     public void afterCommit() {
-
-                        reservedTicketCounterService.releaseTickets(
-                                ticketTypeId,
-                                quantity
-                        );
+                        reservedTicketCounterService.releaseTickets(ticketTypeId, quantity);
                     }
                 }
         );
+    }
+
+    @Override
+    public BookingResponse confirmBooking(UUID bookingId, UUID currentUserId, boolean admin) {
+
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BookingNotFoundException("Booking not found with id: " + bookingId));
+
+        if (!admin && !booking.getUserId().equals(currentUserId)) {
+            throw new BookingAccessDeniedException("You are not authorized to confirm this booking");
+        }
+
+        int updatedRows = bookingRepository.updateStatusIfCurrent(bookingId, BookingStatus.PENDING, BookingStatus.CONFIRMED);
+
+        if (updatedRows == 0) {
+            throw new InvalidBookingStateException("Booking is not in PENDING state");
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        reservationService.deleteReservation(bookingId);
+                    }
+                }
+        );
+
+        booking.setStatus(BookingStatus.CONFIRMED);
+
+        return bookingMapper.toResponse(booking);
     }
 }
