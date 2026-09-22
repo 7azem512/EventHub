@@ -10,13 +10,17 @@ import java.util.UUID;
 public interface TicketTypeService {
     TicketTypeResponse createTicketType(
             UUID eventId,
-            CreateTicketTypeRequest request
+            CreateTicketTypeRequest request,
+            UUID currentUserId,
+            boolean admin
     );
 
     TicketTypeResponse updateTicketType(
             UUID eventId,
             UUID ticketTypeId,
-            UpdateTicketTypeRequest request
+            UpdateTicketTypeRequest request,
+            UUID currentUserId,
+            boolean admin
     );
 
     TicketTypeResponse getTicketTypeById(
@@ -30,6 +34,8 @@ public interface TicketTypeService {
 
     void deleteTicketType(
             UUID eventId,
-            UUID ticketTypeId
+            UUID ticketTypeId,
+            UUID currentUserId,
+            boolean admin
     );
 }

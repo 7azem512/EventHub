@@ -50,14 +50,14 @@ public class EventServiceImpl implements EventService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new ResourceNotFoundException("Event not found"));
         validateOwnership(event, currentUserId, admin);
+        if (event.getStatus()!=EventStatus.DRAFT){
+            throw new BusinessRuleException("Event is not in draft status");
+        }
+        validateEventDates(updateEventRequest.getStartDate(), updateEventRequest.getEndDate(), updateEventRequest.getBookingStartDate(), updateEventRequest.getBookingEndDate());
         Category category=categoryRepository.findById(updateEventRequest.getCategoryId())
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
-        validateEventDates(updateEventRequest.getStartDate(),
-                updateEventRequest.getEndDate(),
-                updateEventRequest.getBookingStartDate(),
-                updateEventRequest.getBookingEndDate());
+
         eventMapper.updateEntity(event, updateEventRequest, category);
-        eventRepository.save(event);
         return eventMapper.toResponse(event);
     }
 
@@ -110,6 +110,9 @@ public class EventServiceImpl implements EventService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new ResourceNotFoundException("Event not found"));
         validateOwnership(event, currentUserId, admin);
+        if (event.getStatus()!=EventStatus.DRAFT&&event.getStatus()!=EventStatus.REJECTED){
+            throw new BusinessRuleException("Only DRAFT or REJECTED events can be deleted");
+        }
         if (ticketTypeRepository.existsByEventId(eventId)) {
             throw new BusinessRuleException("Cannot delete event with associated ticket types");
         }
@@ -122,14 +125,19 @@ public class EventServiceImpl implements EventService {
 
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new ResourceNotFoundException("Event not found with id: " + eventId));
+
         validateOwnership(event, currentUserId, admin);
         if (event.getStatus() != EventStatus.DRAFT) {
             throw new BusinessRuleException("Only DRAFT events can be submitted for approval");
         }
+
+        if (!ticketTypeRepository.existsByEventId(eventId)) {
+            throw new BusinessRuleException("Event must have at least one ticket type before submission");
+        }
+
         event.setStatus(EventStatus.PENDING_APPROVAL);
         return eventMapper.toResponse(event);
     }
-
 
 
     @Override

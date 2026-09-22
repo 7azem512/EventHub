@@ -5,6 +5,9 @@ import com.eventhub.event.dto.request.UpdateTicketTypeRequest;
 import com.eventhub.event.dto.response.TicketTypeResponse;
 import com.eventhub.event.entity.Event;
 import com.eventhub.event.entity.TicketType;
+import com.eventhub.event.enums.EventStatus;
+import com.eventhub.event.exception.BusinessRuleException;
+import org.springframework.security.access.AccessDeniedException;
 import com.eventhub.event.exception.DuplicateResourceException;
 import com.eventhub.event.exception.ResourceNotFoundException;
 import com.eventhub.event.mapper.TicketTypeMapper;
@@ -25,9 +28,14 @@ public class TicketTypeServiceImpl implements TicketTypeService {
     private final TicketTypeRepository ticketTypeRepository;
     private final TicketTypeMapper ticketTypeMapper;
     private final EventRepository eventRepository;
+
+
+
     @Override
-    public TicketTypeResponse createTicketType(UUID eventId, CreateTicketTypeRequest request) {
+    public TicketTypeResponse createTicketType(UUID eventId, CreateTicketTypeRequest request, UUID currentUserId, boolean admin) {
         Event event = eventRepository.findById(eventId).orElseThrow(() -> new ResourceNotFoundException("Event not found"));
+        validateEventOwnership(event, currentUserId, admin);
+        validateEventStatus(event);
         TicketType ticketType = ticketTypeMapper.toEntity(request, event);
         if (ticketTypeRepository.existsByEventIdAndNameIgnoreCase(eventId,request.getName())){
             throw new DuplicateResourceException("Ticket type already exists");
@@ -37,48 +45,35 @@ public class TicketTypeServiceImpl implements TicketTypeService {
     }
 
     @Override
-    public TicketTypeResponse updateTicketType(UUID eventId, UUID ticketTypeId, UpdateTicketTypeRequest request) {
+    public TicketTypeResponse updateTicketType(UUID eventId, UUID ticketTypeId, UpdateTicketTypeRequest request, UUID currentUserId, boolean admin) {
         TicketType ticketType = ticketTypeRepository.findById(ticketTypeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ticket type not found"));
         if (!ticketType.getEvent().getId().equals(eventId)){
-            throw new ResourceNotFoundException("Ticket type not found");
+            throw new ResourceNotFoundException("Ticket type not found for this event");
         }
+        validateEventOwnership(ticketType.getEvent(), currentUserId, admin);
+        validateEventStatus(ticketType.getEvent());
+
         if (
                 !ticketType.getName().equalsIgnoreCase(request.getName())
                         &&
-                        ticketTypeRepository.existsByEventIdAndNameIgnoreCase(
-                                eventId,
-                                request.getName()
-                        )
+                        ticketTypeRepository.existsByEventIdAndNameIgnoreCase(eventId, request.getName())
         ) {
-            throw new DuplicateResourceException(
-                    "Ticket type already exists for this event"
-            );
+            throw new DuplicateResourceException("Ticket type already exists for this event");
         }
         ticketTypeMapper.updateEntity(ticketType, request);
-        ticketTypeRepository.save(ticketType);
         return ticketTypeMapper.toResponse(ticketType);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public TicketTypeResponse getTicketTypeById(
-            UUID eventId,
-            UUID ticketTypeId
-    ) {
+    public TicketTypeResponse getTicketTypeById(UUID eventId, UUID ticketTypeId) {
 
-        TicketType ticketType =
-                ticketTypeRepository.findById(ticketTypeId)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Ticket type not found"
-                                )
-                        );
+        TicketType ticketType = ticketTypeRepository.findById(ticketTypeId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Ticket type not found"));
 
         if (!ticketType.getEvent().getId().equals(eventId)) {
-            throw new ResourceNotFoundException(
-                    "Ticket type not found for this event"
-            );
+            throw new ResourceNotFoundException("Ticket type not found for this event");
         }
 
         return ticketTypeMapper.toResponse(ticketType);
@@ -86,9 +81,7 @@ public class TicketTypeServiceImpl implements TicketTypeService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<TicketTypeResponse> getTicketTypesByEvent(
-            UUID eventId
-    ) {
+    public List<TicketTypeResponse> getTicketTypesByEvent(UUID eventId) {
 
         if (!eventRepository.existsById(eventId)) {
             throw new ResourceNotFoundException("Event not found");
@@ -102,12 +95,29 @@ public class TicketTypeServiceImpl implements TicketTypeService {
     }
 
     @Override
-    public void deleteTicketType(UUID eventId, UUID ticketTypeId) {
+    public void deleteTicketType(UUID eventId, UUID ticketTypeId, UUID currentUserId, boolean admin) {
         TicketType ticketType = ticketTypeRepository.findById(ticketTypeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ticket type not found"));
+
         if (!ticketType.getEvent().getId().equals(eventId)) {
             throw new ResourceNotFoundException("Ticket type not found");
         }
+        validateEventOwnership(ticketType.getEvent(), currentUserId, admin);
+        validateEventStatus(ticketType.getEvent());
+
         ticketTypeRepository.delete(ticketType);
     }
-}
+
+
+    private void validateEventOwnership(Event event, UUID currentUserId, boolean admin) {
+        if (!admin && !event.getOrganizerId().equals(currentUserId)) {
+            throw new AccessDeniedException("You are not authorized to modify ticket types for this event");
+        }}
+
+    private void validateEventStatus(Event event)   {
+            if (event.getStatus() != EventStatus.DRAFT) {
+                throw new BusinessRuleException("Event is not in draft status");
+            }
+        }
+    }
+
