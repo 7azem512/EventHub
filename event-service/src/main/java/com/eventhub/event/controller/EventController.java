@@ -6,6 +6,7 @@ import com.eventhub.event.dto.response.EventResponse;
 import com.eventhub.event.enums.EventStatus;
 import com.eventhub.event.services.EventService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -16,6 +17,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -322,4 +324,216 @@ public class EventController {
                 .noContent()
                 .build();
     }
+
+
+    @PatchMapping("/{eventId}/submit")
+    @Operation(
+            summary = "Submit event for approval",
+            description = "Moves an event from DRAFT to PENDING_APPROVAL. Only the event owner or an administrator can submit it."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Event submitted successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "User is not authorized to submit this event"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Event not found"
+            ),
+            @ApiResponse(
+                    responseCode = "422",
+                    description = "Only DRAFT events can be submitted"
+            )
+    })
+    public ResponseEntity<EventResponse> submitEvent(
+            @Parameter(description = "Event ID", required = true)
+            @PathVariable UUID eventId,
+
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal Jwt jwt,
+
+            @Parameter(hidden = true)
+            Authentication authentication
+    ) {
+
+        UUID currentUserId = UUID.fromString(jwt.getSubject());
+
+        boolean admin = authentication.getAuthorities()
+                .stream()
+                .anyMatch(authority ->
+                        authority.getAuthority().equals("ROLE_ADMIN")
+                );
+
+        EventResponse response = eventService.submitEvent(eventId,currentUserId, admin);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/{eventId}/approve")
+    @Operation(
+            summary = "Approve event",
+            description = "Approves an event that is currently PENDING_APPROVAL and publishes it. Admin only."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Event approved and published successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Only administrators can approve events"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Event not found"
+            ),
+            @ApiResponse(
+                    responseCode = "422",
+                    description = "Event is not in PENDING_APPROVAL state"
+            )
+    })
+    public ResponseEntity<EventResponse> approveEvent(
+            @Parameter(description = "Event ID", required = true)
+            @PathVariable UUID eventId
+    ) {
+
+        EventResponse response =
+                eventService.approveEvent(eventId);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/{eventId}/reject")
+    @Operation(
+            summary = "Reject event",
+            description = "Rejects an event that is currently PENDING_APPROVAL. Admin only."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Event rejected successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Only administrators can reject events"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Event not found"
+            ),
+            @ApiResponse(
+                    responseCode = "422",
+                    description = "Event is not in PENDING_APPROVAL state"
+            )
+    })
+    public ResponseEntity<EventResponse> rejectEvent(
+            @Parameter(description = "Event ID", required = true)
+            @PathVariable UUID eventId
+    ) {
+
+        EventResponse response =
+                eventService.rejectEvent(eventId);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/{eventId}/revise")
+    @Operation(
+            summary = "Revise rejected event",
+            description = "Moves a REJECTED event back to DRAFT. Only the event owner or an administrator can revise it."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Event moved back to DRAFT successfully"),
+            @ApiResponse(responseCode = "403", description = "User is not allowed to revise this event"),
+            @ApiResponse(responseCode = "404", description = "Event not found"),
+            @ApiResponse(responseCode = "422", description = "Event is not in REJECTED state")
+    })
+    public ResponseEntity<EventResponse> reviseEvent(
+            @PathVariable UUID eventId,
+            @AuthenticationPrincipal Jwt jwt,
+            Authentication authentication
+    ) {
+        UUID currentUserId = UUID.fromString(jwt.getSubject());
+        boolean admin = authentication.getAuthorities()
+                .stream()
+                .anyMatch(authority ->
+                        authority.getAuthority().equals("ROLE_ADMIN")
+                );
+
+        EventResponse response = eventService.reviseEvent(eventId, currentUserId, admin);
+        return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/{eventId}/cancel")
+    @Operation(
+            summary = "Cancel event",
+            description = "Cancels an event that is currently PUBLISHED. Only the event owner or an administrator can cancel it."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Event cancelled successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Only administrators or event organizers can cancel events"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Event not found"
+            ),
+            @ApiResponse(
+                    responseCode = "422",
+                    description = "Event is not in published state"
+            )
+    })
+
+    public ResponseEntity<EventResponse> cancelEvent(
+            @PathVariable UUID eventId,
+            @AuthenticationPrincipal Jwt jwt,
+            Authentication authentication
+    ) {
+        UUID currentUserId = UUID.fromString(jwt.getSubject());
+        boolean admin = authentication.getAuthorities()
+                .stream()
+                .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"));
+
+        EventResponse response = eventService.cancelEvent(eventId, currentUserId, admin);
+        return ResponseEntity.ok(response);
+    }
+
+
+    @PatchMapping("/{eventId}/complete")
+    @Operation(
+            summary = "Complete event",
+            description = "Completes an event that is currently PUBLISHED. Admin only."    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Event completed successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Only administrators can complete events"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Event not found"
+            ),
+            @ApiResponse(
+                    responseCode = "422",
+                    description = "Event is not in PUBLISHED state"
+            )
+    })
+    public ResponseEntity<EventResponse> completeEvent(
+            @PathVariable UUID eventId
+    ) {
+        EventResponse response = eventService.completeEvent(eventId);
+        return ResponseEntity.ok(response);
+    }
+
 }

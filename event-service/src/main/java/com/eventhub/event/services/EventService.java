@@ -19,4 +19,12 @@ public interface EventService {
     Page<EventResponse> getEventByOrganizer(UUID organizerId, Pageable pageable);
     Page<EventResponse> getEventByCategory(UUID categoryId, Pageable pageable);
     Page<EventResponse> searchEvents(String search, Pageable pageable);
-    void deleteEvent(UUID eventId, UUID currentUserId, boolean admin);}
+    void deleteEvent(UUID eventId, UUID currentUserId, boolean admin);
+    EventResponse submitEvent(UUID eventId, UUID currentUserId,boolean admin);
+    EventResponse approveEvent(UUID eventId);
+    EventResponse rejectEvent(UUID eventId);
+    EventResponse reviseEvent(UUID eventId, UUID currentUserId, boolean admin);
+    EventResponse cancelEvent(UUID eventId, UUID currentUserId, boolean admin);
+    EventResponse completeEvent(UUID eventId);
+
+}

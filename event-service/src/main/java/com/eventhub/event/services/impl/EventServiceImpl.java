@@ -17,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -116,12 +117,87 @@ public class EventServiceImpl implements EventService {
     }
 
 
-    private void validateEventDates(
-            LocalDateTime startDate,
-            LocalDateTime endDate,
-            LocalDateTime bookingStartDate,
-            LocalDateTime bookingEndDate
-    ) {
+    @Override
+    public EventResponse submitEvent(UUID eventId, UUID currentUserId, boolean admin) {
+
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException("Event not found with id: " + eventId));
+        validateOwnership(event, currentUserId, admin);
+        if (event.getStatus() != EventStatus.DRAFT) {
+            throw new BusinessRuleException("Only DRAFT events can be submitted for approval");
+        }
+        event.setStatus(EventStatus.PENDING_APPROVAL);
+        return eventMapper.toResponse(event);
+    }
+
+
+
+    @Override
+    @PreAuthorize("hasRole('ADMIN')")
+    public EventResponse approveEvent(UUID eventId) {
+        Event event= eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException("Event not found"));
+        if (event.getStatus()!=EventStatus.PENDING_APPROVAL){
+            throw new BusinessRuleException("Only PENDING_APPROVAL events can be approved");
+        }
+        event.setStatus(EventStatus.PUBLISHED);
+        return eventMapper.toResponse(event);
+    }
+
+    @Override
+    @PreAuthorize("hasRole('ADMIN')")
+    public EventResponse rejectEvent(UUID eventId) {
+        Event event= eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException("Event not found with id: "+eventId));
+        if (event.getStatus()!=EventStatus.PENDING_APPROVAL){
+            throw new BusinessRuleException("Only PENDING_APPROVAL events can be rejected");
+        }
+        event.setStatus(EventStatus.REJECTED);
+        return eventMapper.toResponse(event);
+    }
+
+    @Override
+    public EventResponse reviseEvent(UUID eventId, UUID currentUserId, boolean admin) {
+
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException("Event not found with id: " + eventId));
+
+        validateOwnership(event, currentUserId, admin);
+        if (event.getStatus() != EventStatus.REJECTED) {
+            throw new BusinessRuleException("Only REJECTED events can be revised");
+        }
+        event.setStatus(EventStatus.DRAFT);
+        return eventMapper.toResponse(event);
+    }
+
+
+    @Override
+    public EventResponse cancelEvent(UUID eventId, UUID currentUserId, boolean admin) {
+        Event event =eventRepository.findById(eventId)
+                .orElseThrow(()->new ResourceNotFoundException("event not found with id: "+eventId));
+        validateOwnership(event,currentUserId,admin);
+        if (event.getStatus()!=EventStatus.PUBLISHED){
+            throw new BusinessRuleException("Only PUBLISHED events can be cancelled");
+        }
+        event.setStatus(EventStatus.CANCELLED);
+        return eventMapper.toResponse(event);
+    }
+
+
+    @Override
+    @PreAuthorize("hasRole('ADMIN')")
+    public EventResponse completeEvent(UUID eventId) {
+        Event event =eventRepository.findById(eventId)
+                .orElseThrow(()->new ResourceNotFoundException("event not found with id: "+eventId));
+        if (event.getStatus()!=EventStatus.PUBLISHED){
+            throw new BusinessRuleException("Only PUBLISHED events can be completed");
+        }
+        event.setStatus(EventStatus.COMPLETED);
+        return eventMapper.toResponse(event);
+    }
+
+
+    private void validateEventDates(LocalDateTime startDate, LocalDateTime endDate, LocalDateTime bookingStartDate, LocalDateTime bookingEndDate) {
         if (!startDate.isBefore(endDate)) {
             throw new BusinessRuleException(
                     "Event start date must be before event end date"
@@ -147,9 +223,9 @@ public class EventServiceImpl implements EventService {
         }
 
         if (!event.getOrganizerId().equals(currentUserId)) {
-            throw new AccessDeniedException(
-                    "You are not allowed to modify this event"
-            );
+            throw new AccessDeniedException("You are not allowed to modify this event");
         }
     }
+
+
 }
