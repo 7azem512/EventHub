@@ -13,21 +13,47 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+public class KeycloakJwtAuthenticationConverter
+        implements Converter<Jwt, Mono<AbstractAuthenticationToken>> {
 
-public class KeycloakJwtAuthenticationConverter implements Converter<Jwt, Mono<AbstractAuthenticationToken>> {
     @Override
     public Mono<AbstractAuthenticationToken> convert(Jwt jwt) {
+
         List<GrantedAuthority> authorities = new ArrayList<>();
 
-        Map<String, Object> realmAccess = jwt.getClaim("realm_access");
-        if (realmAccess !=null){
-            Object rolesObject = realmAccess.get("roles");
-            if (rolesObject instanceof Collection<?>roles){
-                roles.forEach(role -> authorities.add(new SimpleGrantedAuthority("ROLE_" + role)));
+        Map<String, Object> realmAccess =
+                jwt.getClaim("realm_access");
+
+        if (realmAccess != null) {
+
+            Object rolesObject =
+                    realmAccess.get("roles");
+
+            if (rolesObject instanceof Collection<?> roles) {
+
+                roles.forEach(role ->
+                        authorities.add(
+                                new SimpleGrantedAuthority(
+                                        "ROLE_" + role
+                                )
+                        )
+                );
             }
         }
-        String username = jwt.getClaimAsString("preferred_username");
 
-        return Mono.just(new JwtAuthenticationToken(jwt, authorities, username));
+        String username =
+                jwt.getClaimAsString("preferred_username");
+
+        if (username == null) {
+            username = jwt.getSubject();
+        }
+
+        return Mono.just(
+                new JwtAuthenticationToken(
+                        jwt,
+                        authorities,
+                        username
+                )
+        );
     }
 }

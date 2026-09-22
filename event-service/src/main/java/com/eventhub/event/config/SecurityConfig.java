@@ -53,12 +53,12 @@ public class SecurityConfig {
                                 "/actuator/health",
                                 "/actuator/info",
                                 "/swagger-ui/**",
+                                "/swagger-ui.html",
                                 "/v3/api-docs/**",
-                                "/swagger-ui.html"
+                                "/error"
                         )
                         .permitAll()
 
-                        // قراءة Events و Ticket Types
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/events/**"
@@ -69,7 +69,6 @@ public class SecurityConfig {
                                 "ADMIN"
                         )
 
-                        // إنشاء أو تعديل أو حذف Event / Ticket Type
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/events/**"
@@ -89,6 +88,15 @@ public class SecurityConfig {
                         )
 
                         .requestMatchers(
+                                HttpMethod.PATCH,
+                                "/api/events/**"
+                        )
+                        .hasAnyRole(
+                                "ORGANIZER",
+                                "ADMIN"
+                        )
+
+                        .requestMatchers(
                                 HttpMethod.DELETE,
                                 "/api/events/**"
                         )
@@ -97,7 +105,6 @@ public class SecurityConfig {
                                 "ADMIN"
                         )
 
-                        // قراءة Categories
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/categories/**"
@@ -108,7 +115,6 @@ public class SecurityConfig {
                                 "ADMIN"
                         )
 
-                        // إدارة Categories للـADMIN فقط
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/categories/**"
@@ -131,7 +137,7 @@ public class SecurityConfig {
                         .authenticated()
 
                         .anyRequest()
-                        .permitAll()
+                        .denyAll()
                 )
 
                 .oauth2ResourceServer(oauth2 ->

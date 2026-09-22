@@ -11,27 +11,29 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 public class SecurityConfig {
 
     @Bean
-    public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
+    public SecurityWebFilterChain securityWebFilterChain(
+            ServerHttpSecurity http
+    ) {
+
         KeycloakJwtAuthenticationConverter converter =
                 new KeycloakJwtAuthenticationConverter();
+
         return http
-                .csrf(csrf -> csrf.disable())
+                .csrf(ServerHttpSecurity.CsrfSpec::disable)
 
                 .authorizeExchange(exchange -> exchange
+
                         .pathMatchers(
                                 "/actuator/health",
                                 "/actuator/info"
                         )
                         .permitAll()
 
-                        .pathMatchers("/api/events/**")
-                        .hasRole("USER")
-
                         .pathMatchers("/api/**")
                         .authenticated()
 
                         .anyExchange()
-                        .permitAll()
+                        .denyAll()
                 )
 
                 .oauth2ResourceServer(oauth2 ->
