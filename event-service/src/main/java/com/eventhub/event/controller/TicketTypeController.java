@@ -5,6 +5,7 @@ import com.eventhub.event.dto.request.UpdateTicketTypeRequest;
 import com.eventhub.event.dto.response.TicketTypeResponse;
 import com.eventhub.event.services.TicketTypeService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -12,6 +13,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -44,23 +48,48 @@ public class TicketTypeController {
                     description = "Invalid request data or event ID"
             ),
             @ApiResponse(
+                    responseCode = "403",
+                    description = "User is not authorized to modify ticket types for this event"
+            ),
+            @ApiResponse(
                     responseCode = "404",
                     description = "Event not found"
             ),
             @ApiResponse(
                     responseCode = "409",
                     description = "Ticket type with the same name already exists for this event"
+            ),
+            @ApiResponse(
+                    responseCode = "422",
+                    description = "Ticket types can only be modified while the event is in DRAFT state"
             )
     })
     public ResponseEntity<TicketTypeResponse> createTicketType(
             @PathVariable UUID eventId,
-            @Valid @RequestBody CreateTicketTypeRequest request
+            @Valid @RequestBody CreateTicketTypeRequest request,
+
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal Jwt jwt,
+
+            @Parameter(hidden = true)
+            Authentication authentication
     ) {
+
+        UUID currentUserId =
+                UUID.fromString(jwt.getSubject());
+
+        boolean admin = authentication.getAuthorities()
+                .stream()
+                .anyMatch(authority ->
+                        authority.getAuthority().equals("ROLE_ADMIN")
+                );
 
         TicketTypeResponse response =
                 ticketTypeService.createTicketType(
                         eventId,
-                        request
+                        request,
+                        currentUserId,
+                        admin
                 );
 
         return ResponseEntity
@@ -148,25 +177,50 @@ public class TicketTypeController {
                     description = "Invalid request data, event ID or ticket type ID"
             ),
             @ApiResponse(
+                    responseCode = "403",
+                    description = "User is not authorized to modify ticket types for this event"
+            ),
+            @ApiResponse(
                     responseCode = "404",
                     description = "Ticket type not found for this event"
             ),
             @ApiResponse(
                     responseCode = "409",
                     description = "Another ticket type with the same name already exists for this event"
+            ),
+            @ApiResponse(
+                    responseCode = "422",
+                    description = "Ticket types can only be modified while the event is in DRAFT state"
             )
     })
     public ResponseEntity<TicketTypeResponse> updateTicketType(
             @PathVariable UUID eventId,
             @PathVariable UUID ticketTypeId,
-            @Valid @RequestBody UpdateTicketTypeRequest request
+            @Valid @RequestBody UpdateTicketTypeRequest request,
+
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal Jwt jwt,
+
+            @Parameter(hidden = true)
+            Authentication authentication
     ) {
+
+        UUID currentUserId =
+                UUID.fromString(jwt.getSubject());
+
+        boolean admin = authentication.getAuthorities()
+                .stream()
+                .anyMatch(authority ->
+                        authority.getAuthority().equals("ROLE_ADMIN")
+                );
 
         TicketTypeResponse response =
                 ticketTypeService.updateTicketType(
                         eventId,
                         ticketTypeId,
-                        request
+                        request,
+                        currentUserId,
+                        admin
                 );
 
         return ResponseEntity.ok(response);
@@ -188,18 +242,43 @@ public class TicketTypeController {
                     description = "Invalid event ID or ticket type ID"
             ),
             @ApiResponse(
+                    responseCode = "403",
+                    description = "User is not authorized to modify ticket types for this event"
+            ),
+            @ApiResponse(
                     responseCode = "404",
                     description = "Ticket type not found for this event"
+            ),
+            @ApiResponse(
+                    responseCode = "422",
+                    description = "Ticket types can only be modified while the event is in DRAFT state"
             )
     })
     public ResponseEntity<Void> deleteTicketType(
             @PathVariable UUID eventId,
-            @PathVariable UUID ticketTypeId
+            @PathVariable UUID ticketTypeId,
+
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal Jwt jwt,
+
+            @Parameter(hidden = true)
+            Authentication authentication
     ) {
+
+        UUID currentUserId =
+                UUID.fromString(jwt.getSubject());
+
+        boolean admin = authentication.getAuthorities()
+                .stream()
+                .anyMatch(authority ->
+                        authority.getAuthority().equals("ROLE_ADMIN")
+                );
 
         ticketTypeService.deleteTicketType(
                 eventId,
-                ticketTypeId
+                ticketTypeId,
+                currentUserId,
+                admin
         );
 
         return ResponseEntity
