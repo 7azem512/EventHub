@@ -1,5 +1,6 @@
 package com.eventhub.booking.exception;
 
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -79,6 +80,28 @@ public class GlobalExceptionHandler {
                 .status(status)
                 .body(response);
     }
+
+    @ExceptionHandler(CallNotPermittedException.class)
+    public ResponseEntity<ErrorResponse> handleCallNotPermittedException(
+            CallNotPermittedException ex,
+            HttpServletRequest request
+    ) {
+
+        HttpStatus status = HttpStatus.SERVICE_UNAVAILABLE;
+
+        ErrorResponse response = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(status.value())
+                .error(status.getReasonPhrase())
+                .message("Event service is temporarily unavailable")
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity
+                .status(status)
+                .body(response);
+    }
+
     @ExceptionHandler(EventCatalogNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleEventCatalogNotFoundException(
             EventCatalogNotFoundException ex,

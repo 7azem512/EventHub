@@ -7,6 +7,8 @@ import com.eventhub.booking.client.dto.TicketTypeInfo;
 import com.eventhub.booking.exception.EventCatalogNotFoundException;
 import com.eventhub.booking.exception.EventCatalogUnavailableException;
 
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 
 import org.springframework.stereotype.Component;
@@ -31,6 +33,8 @@ public class RestEventCatalogClient implements EventCatalogClient {
     }
 
     @Override
+    @Retry(name = "eventCatalog")
+    @CircuitBreaker(name = "eventCatalog")
     public TicketTypeInfo getTicketTypeInfo(
             UUID eventId,
             UUID ticketTypeId
@@ -66,6 +70,8 @@ public class RestEventCatalogClient implements EventCatalogClient {
 
 
     @Override
+    @Retry(name = "eventCatalog")
+    @CircuitBreaker(name = "eventCatalog")
     public EventInfo getEventInfo(UUID eventId) {
 
         try {

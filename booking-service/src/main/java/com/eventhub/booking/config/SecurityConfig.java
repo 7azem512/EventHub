@@ -42,7 +42,11 @@ public class SecurityConfig {
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**",
                                 "/actuator/health",
-                                "/error"
+                                "/error",
+                                "/actuator/circuitbreakers",
+                                "/actuator/circuitbreakerevents",
+                                "/actuator/retries",
+                                "/actuator/retryevents"
                         )
                         .permitAll()
 
