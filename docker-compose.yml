@@ -113,6 +113,30 @@ services:
       - "6379:6379"
     command: redis-server --notify-keyspace-events Ex
 
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: eventhub-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: eventhub-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin123
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
 volumes:
   event_db_data:
   user_db_data:
@@ -120,3 +144,5 @@ volumes:
   media_db_data:
   minio_data:
   booking_db_data:
+  prometheus_data:
+  grafana_data:

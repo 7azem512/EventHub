@@ -52,7 +52,10 @@ public class SecurityConfig {
                                 "/actuator/info",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
-                                "/swagger-ui.html"
+                                "/swagger-ui.html",
+                                "/actuator/health",
+                                "/actuator/info",
+                                "/actuator/prometheus"
                         )
                         .permitAll()
 

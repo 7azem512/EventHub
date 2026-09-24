@@ -46,7 +46,9 @@ public class SecurityConfig {
                                 "/actuator/circuitbreakers",
                                 "/actuator/circuitbreakerevents",
                                 "/actuator/retries",
-                                "/actuator/retryevents"
+                                "/actuator/retryevents",
+                                "/actuator/metrics",
+                                "/actuator/prometheus"
                         )
                         .permitAll()
 
