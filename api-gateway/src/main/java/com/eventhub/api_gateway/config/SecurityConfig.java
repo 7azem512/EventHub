@@ -26,9 +26,14 @@ public class SecurityConfig {
                         .pathMatchers(
                                 "/actuator/health",
                                 "/actuator/info",
-                                "/actuator/health",
-                                "/actuator/info",
-                                "/actuator/prometheus"
+                                "/actuator/prometheus",
+
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**",
+
+                                "/event-service/v3/api-docs",
+                                "/booking-service/v3/api-docs"
                         )
                         .permitAll()
 

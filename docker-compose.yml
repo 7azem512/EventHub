@@ -137,6 +137,23 @@ services:
     depends_on:
       - prometheus
 
+
+  tempo:
+    image: grafana/tempo:latest
+    container_name: eventhub-tempo
+
+    command:
+      - "-config.file=/etc/tempo.yml"
+
+    ports:
+      - "3200:3200"
+      - "4317:4317"
+      - "4318:4318"
+
+    volumes:
+      - ./monitoring/tempo/tempo.yml:/etc/tempo.yml:ro
+
+
 volumes:
   event_db_data:
   user_db_data:
@@ -146,3 +163,4 @@ volumes:
   booking_db_data:
   prometheus_data:
   grafana_data:
+  tempo_data:

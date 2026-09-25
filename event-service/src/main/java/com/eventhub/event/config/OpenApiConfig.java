@@ -8,8 +8,11 @@ import io.swagger.v3.oas.models.security.OAuthFlows;
 import io.swagger.v3.oas.models.security.Scopes;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
+import io.swagger.v3.oas.models.servers.Server;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.List;
 
 @Configuration
 public class OpenApiConfig {
@@ -26,6 +29,14 @@ public class OpenApiConfig {
                         .version("v1")
                         .description(
                                 "Event management, categories and ticket types API"
+                        )
+                )
+
+                .servers(
+                        List.of(
+                                new Server()
+                                        .url("http://localhost:8081")
+                                        .description("EventHub API Gateway")
                         )
                 )
 
