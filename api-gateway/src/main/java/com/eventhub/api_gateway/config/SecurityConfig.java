@@ -33,7 +33,9 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
 
                                 "/event-service/v3/api-docs",
-                                "/booking-service/v3/api-docs"
+                                "/booking-service/v3/api-docs",
+                                "/user-service/v3/api-docs",
+                                "/media-service/v3/api-docs"
                         )
                         .permitAll()
 

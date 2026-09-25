@@ -8,8 +8,11 @@ import io.swagger.v3.oas.models.security.OAuthFlows;
 import io.swagger.v3.oas.models.security.Scopes;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
+import io.swagger.v3.oas.models.servers.Server;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.List;
 
 @Configuration
 public class OpenApiConfig {
@@ -47,6 +50,15 @@ public class OpenApiConfig {
                                 .title("EventHub Media Service API")
                                 .version("1.0")
                 )
+
+                .servers(
+                        List.of(
+                                new Server()
+                                        .url("http://localhost:8081")
+                                        .description("EventHub API Gateway")
+                        )
+                )
+
                 .components(
                         new Components()
                                 .addSecuritySchemes(
@@ -54,6 +66,7 @@ public class OpenApiConfig {
                                         securityScheme
                                 )
                 )
+
                 .addSecurityItem(
                         new SecurityRequirement()
                                 .addList("keycloak")
