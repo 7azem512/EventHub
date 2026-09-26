@@ -41,8 +41,17 @@ public class BookingEventProcessor {
 
         switch (event.eventType()) {
 
+            case BOOKING_CREATED ->
+                    handleBookingCreated(event);
+
             case BOOKING_CONFIRMED ->
                     handleBookingConfirmed(event);
+
+            case BOOKING_CANCELLED ->
+                    handleBookingCancelled(event);
+
+            case BOOKING_EXPIRED ->
+                    handleBookingExpired(event);
 
             default ->
                     log.info(
@@ -51,6 +60,29 @@ public class BookingEventProcessor {
                             event.messageId()
                     );
         }
+    }
+
+    private void handleBookingCreated(BookingEvent event) {
+
+        Notification notification = new Notification(
+                UUID.randomUUID(),
+                event.payload().userId(),
+                NotificationType.BOOKING_CREATED,
+                "Booking created",
+                "Your booking has been created and is waiting for confirmation.",
+                "BOOKING",
+                event.aggregateId()
+        );
+
+        notificationRepository.save(notification);
+
+        log.info(
+                "BOOKING_CREATED notification created. notificationId={}, messageId={}, bookingId={}, userId={}",
+                notification.getId(),
+                event.messageId(),
+                event.aggregateId(),
+                event.payload().userId()
+        );
     }
 
     private void handleBookingConfirmed(BookingEvent event) {
@@ -69,6 +101,50 @@ public class BookingEventProcessor {
 
         log.info(
                 "BOOKING_CONFIRMED notification created. notificationId={}, messageId={}, bookingId={}, userId={}",
+                notification.getId(),
+                event.messageId(),
+                event.aggregateId(),
+                event.payload().userId()
+        );
+    }
+    private void handleBookingCancelled(BookingEvent event) {
+
+        Notification notification = new Notification(
+                UUID.randomUUID(),
+                event.payload().userId(),
+                NotificationType.BOOKING_CANCELLED,
+                "Booking cancelled",
+                "Your booking has been cancelled successfully.",
+                "BOOKING",
+                event.aggregateId()
+        );
+
+        notificationRepository.save(notification);
+
+        log.info(
+                "BOOKING_CANCELLED notification created. notificationId={}, messageId={}, bookingId={}, userId={}",
+                notification.getId(),
+                event.messageId(),
+                event.aggregateId(),
+                event.payload().userId()
+        );
+    }
+    private void handleBookingExpired(BookingEvent event) {
+
+        Notification notification = new Notification(
+                UUID.randomUUID(),
+                event.payload().userId(),
+                NotificationType.BOOKING_EXPIRED,
+                "Booking expired",
+                "Your booking reservation has expired.",
+                "BOOKING",
+                event.aggregateId()
+        );
+
+        notificationRepository.save(notification);
+
+        log.info(
+                "BOOKING_EXPIRED notification created. notificationId={}, messageId={}, bookingId={}, userId={}",
                 notification.getId(),
                 event.messageId(),
                 event.aggregateId(),
