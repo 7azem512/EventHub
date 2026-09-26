@@ -64,4 +64,9 @@ public class Notification {
         this.referenceType = referenceType;
         this.referenceId = referenceId;
     }
+    public void markAsRead() {
+        if (this.readAt == null) {
+            this.readAt = Instant.now();
+        }
+    }
 }
