@@ -12,6 +12,10 @@ import com.eventhub.booking.exception.BookingNotFoundException;
 import com.eventhub.booking.exception.InsufficientCapacityException;
 import com.eventhub.booking.exception.InvalidBookingStateException;
 import com.eventhub.booking.mapper.BookingMapper;
+import com.eventhub.booking.messaging.event.BookingEvent;
+import com.eventhub.booking.messaging.event.BookingEventPayload;
+import com.eventhub.booking.messaging.event.BookingEventType;
+import com.eventhub.booking.messaging.outbox.OutboxEventWriter;
 import com.eventhub.booking.repository.BookingRepository;
 import com.eventhub.booking.reservation.BookingReservation;
 import com.eventhub.booking.reservation.ReservationService;
@@ -24,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -36,6 +41,7 @@ public class BookingServiceImpl implements BookingService {
     private final EventCatalogClient eventCatalogClient;
     private final ReservationService reservationService;
     private final ReservedTicketCounterService reservedTicketCounterService;
+    private final OutboxEventWriter outboxEventWriter;
 
 
 
@@ -235,21 +241,56 @@ public class BookingServiceImpl implements BookingService {
         );
     }
 
+    @Transactional
     @Override
-    public BookingResponse confirmBooking(UUID bookingId, UUID currentUserId, boolean admin) {
+    public BookingResponse confirmBooking(
+            UUID bookingId,
+            UUID currentUserId,
+            boolean admin
+    ) {
 
         Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new BookingNotFoundException("Booking not found with id: " + bookingId));
+                .orElseThrow(() ->
+                        new BookingNotFoundException(
+                                "Booking not found with id: " + bookingId
+                        )
+                );
 
         if (!admin && !booking.getUserId().equals(currentUserId)) {
-            throw new BookingAccessDeniedException("You are not authorized to confirm this booking");
+            throw new BookingAccessDeniedException(
+                    "You are not authorized to confirm this booking"
+            );
         }
 
-        int updatedRows = bookingRepository.updateStatusIfCurrent(bookingId, BookingStatus.PENDING, BookingStatus.CONFIRMED);
+        int updatedRows = bookingRepository.updateStatusIfCurrent(
+                bookingId,
+                BookingStatus.PENDING,
+                BookingStatus.CONFIRMED
+        );
 
         if (updatedRows == 0) {
-            throw new InvalidBookingStateException("Booking is not in PENDING state");
+            throw new InvalidBookingStateException(
+                    "Booking is not in PENDING state"
+            );
         }
+
+        booking.setStatus(BookingStatus.CONFIRMED);
+
+        BookingEvent event = new BookingEvent(
+                UUID.randomUUID(),
+                BookingEventType.BOOKING_CONFIRMED,
+                booking.getId(),
+                Instant.now(),
+                new BookingEventPayload(
+                        booking.getUserId(),
+                        booking.getEventId(),
+                        booking.getTicketTypeId(),
+                        booking.getQuantity(),
+                        booking.getTotalAmount()
+                )
+        );
+
+        outboxEventWriter.save(event);
 
         TransactionSynchronizationManager.registerSynchronization(
                 new TransactionSynchronization() {
@@ -259,8 +300,6 @@ public class BookingServiceImpl implements BookingService {
                     }
                 }
         );
-
-        booking.setStatus(BookingStatus.CONFIRMED);
 
         return bookingMapper.toResponse(booking);
     }
