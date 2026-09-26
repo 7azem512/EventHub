@@ -47,43 +47,70 @@ public class BookingServiceImpl implements BookingService {
 
 
     @Override
-    public BookingResponse createBooking(CreateBookingRequest request, UUID currentUserId) {
+    public BookingResponse createBooking(
+            CreateBookingRequest request,
+            UUID currentUserId
+    ) {
 
-        EventInfo eventInfo = eventCatalogClient.getEventInfo(request.getEventId());
+        EventInfo eventInfo =
+                eventCatalogClient.getEventInfo(request.getEventId());
 
         if (!"PUBLISHED".equals(eventInfo.getStatus())) {
-            throw new InvalidBookingStateException("Event is not published and cannot accept bookings");
+            throw new InvalidBookingStateException(
+                    "Event is not published and cannot accept bookings"
+            );
         }
 
         LocalDateTime now = LocalDateTime.now();
 
         if (now.isBefore(eventInfo.getBookingStartDate())) {
-            throw new InvalidBookingStateException("Booking has not started yet for this event");
+            throw new InvalidBookingStateException(
+                    "Booking has not started yet for this event"
+            );
         }
 
         if (now.isAfter(eventInfo.getBookingEndDate())) {
-            throw new InvalidBookingStateException("Booking has already ended for this event");
+            throw new InvalidBookingStateException(
+                    "Booking has already ended for this event"
+            );
         }
 
-        TicketTypeInfo ticketTypeInfo = eventCatalogClient.getTicketTypeInfo(request.getEventId(), request.getTicketTypeId());
+        TicketTypeInfo ticketTypeInfo =
+                eventCatalogClient.getTicketTypeInfo(
+                        request.getEventId(),
+                        request.getTicketTypeId()
+                );
 
-        boolean reserved = reservedTicketCounterService.reserveTickets(request.getTicketTypeId(), request.getQuantity(), ticketTypeInfo.getCapacity());
+        boolean reserved =
+                reservedTicketCounterService.reserveTickets(
+                        request.getTicketTypeId(),
+                        request.getQuantity(),
+                        ticketTypeInfo.getCapacity()
+                );
 
         if (!reserved) {
-            throw new InsufficientCapacityException("Not enough tickets available for ticket type: " + request.getTicketTypeId());
+            throw new InsufficientCapacityException(
+                    "Not enough tickets available for ticket type: "
+                            + request.getTicketTypeId()
+            );
         }
 
         UUID ticketTypeId = request.getTicketTypeId();
         int quantity = request.getQuantity();
 
         TransactionSynchronizationManager.registerSynchronization(
-
                 new TransactionSynchronization() {
 
                     @Override
                     public void afterCompletion(int status) {
-                        if (status == TransactionSynchronization.STATUS_ROLLED_BACK) {
-                            reservedTicketCounterService.releaseTickets(ticketTypeId, quantity);
+
+                        if (status ==
+                                TransactionSynchronization.STATUS_ROLLED_BACK) {
+
+                            reservedTicketCounterService.releaseTickets(
+                                    ticketTypeId,
+                                    quantity
+                            );
                         }
                     }
                 }
@@ -108,16 +135,53 @@ public class BookingServiceImpl implements BookingService {
 
         Booking savedBooking = bookingRepository.save(booking);
 
-        BookingReservation reservation = BookingReservation.builder()
-                .bookingId(savedBooking.getId())
-                .userId(savedBooking.getUserId())
-                .eventId(savedBooking.getEventId())
-                .ticketTypeId(savedBooking.getTicketTypeId())
-                .quantity(savedBooking.getQuantity())
-                .createdAt(savedBooking.getCreatedAt())
-                .build();
+        BookingReservation reservation =
+                BookingReservation.builder()
+                        .bookingId(savedBooking.getId())
+                        .userId(savedBooking.getUserId())
+                        .eventId(savedBooking.getEventId())
+                        .ticketTypeId(savedBooking.getTicketTypeId())
+                        .quantity(savedBooking.getQuantity())
+                        .createdAt(savedBooking.getCreatedAt())
+                        .build();
 
         reservationService.createReservation(reservation);
+
+        UUID bookingId = savedBooking.getId();
+
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+
+                    @Override
+                    public void afterCompletion(int status) {
+
+                        if (status ==
+                                TransactionSynchronization.STATUS_ROLLED_BACK) {
+
+                            reservationService.deleteReservation(
+                                    bookingId
+                            );
+                        }
+                    }
+                }
+        );
+
+        BookingEvent event =
+                new BookingEvent(
+                        UUID.randomUUID(),
+                        BookingEventType.BOOKING_CREATED,
+                        savedBooking.getId(),
+                        Instant.now(),
+                        new BookingEventPayload(
+                                savedBooking.getUserId(),
+                                savedBooking.getEventId(),
+                                savedBooking.getTicketTypeId(),
+                                savedBooking.getQuantity(),
+                                savedBooking.getTotalAmount()
+                        )
+                );
+
+        outboxEventWriter.save(event);
 
         return bookingMapper.toResponse(savedBooking);
     }
@@ -159,7 +223,11 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    public BookingResponse cancelBooking(UUID bookingId,  UUID currentUserId, boolean admin) {
+    public BookingResponse cancelBooking(
+            UUID bookingId,
+            UUID currentUserId,
+            boolean admin
+    ) {
 
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() ->
@@ -186,6 +254,24 @@ public class BookingServiceImpl implements BookingService {
             );
         }
 
+        booking.setStatus(BookingStatus.CANCELLED);
+
+        BookingEvent event = new BookingEvent(
+                UUID.randomUUID(),
+                BookingEventType.BOOKING_CANCELLED,
+                booking.getId(),
+                Instant.now(),
+                new BookingEventPayload(
+                        booking.getUserId(),
+                        booking.getEventId(),
+                        booking.getTicketTypeId(),
+                        booking.getQuantity(),
+                        booking.getTotalAmount()
+                )
+        );
+
+        outboxEventWriter.save(event);
+
         UUID currentBookingId = booking.getId();
         UUID ticketTypeId = booking.getTicketTypeId();
         int quantity = booking.getQuantity();
@@ -196,7 +282,9 @@ public class BookingServiceImpl implements BookingService {
                     @Override
                     public void afterCommit() {
 
-                        reservationService.deleteReservation(currentBookingId);
+                        reservationService.deleteReservation(
+                                currentBookingId
+                        );
 
                         reservedTicketCounterService.releaseTickets(
                                 ticketTypeId,
@@ -206,26 +294,46 @@ public class BookingServiceImpl implements BookingService {
                 }
         );
 
-        booking.setStatus(BookingStatus.CANCELLED);
-
         return bookingMapper.toResponse(booking);
     }
-
 
     @Override
     public void expireBooking(UUID bookingId) {
 
-        Booking booking = bookingRepository.findById(bookingId).orElse(null);
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElse(null);
 
         if (booking == null) {
             return;
         }
 
-        int updatedRows = bookingRepository.updateStatusIfCurrent(bookingId, BookingStatus.PENDING, BookingStatus.EXPIRED);
+        int updatedRows = bookingRepository.updateStatusIfCurrent(
+                bookingId,
+                BookingStatus.PENDING,
+                BookingStatus.EXPIRED
+        );
 
         if (updatedRows == 0) {
             return;
         }
+
+        booking.setStatus(BookingStatus.EXPIRED);
+
+        BookingEvent event = new BookingEvent(
+                UUID.randomUUID(),
+                BookingEventType.BOOKING_EXPIRED,
+                booking.getId(),
+                Instant.now(),
+                new BookingEventPayload(
+                        booking.getUserId(),
+                        booking.getEventId(),
+                        booking.getTicketTypeId(),
+                        booking.getQuantity(),
+                        booking.getTotalAmount()
+                )
+        );
+
+        outboxEventWriter.save(event);
 
         UUID ticketTypeId = booking.getTicketTypeId();
         int quantity = booking.getQuantity();
@@ -235,12 +343,15 @@ public class BookingServiceImpl implements BookingService {
 
                     @Override
                     public void afterCommit() {
-                        reservedTicketCounterService.releaseTickets(ticketTypeId, quantity);
+
+                        reservedTicketCounterService.releaseTickets(
+                                ticketTypeId,
+                                quantity
+                        );
                     }
                 }
         );
     }
-
     @Transactional
     @Override
     public BookingResponse confirmBooking(
