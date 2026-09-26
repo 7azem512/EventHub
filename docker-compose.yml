@@ -89,6 +89,24 @@ services:
       - "5437:5432"
     volumes:
       - booking_db_data:/var/lib/postgresql/data
+
+
+  notification-db:
+    image: postgres:16
+    container_name: eventhub_notification_db
+
+    environment:
+      POSTGRES_DB: eventhub_notification_db
+      POSTGRES_USER: eventhub
+      POSTGRES_PASSWORD: eventhub123
+
+    ports:
+      - "5438:5432"
+
+    volumes:
+      - notification_db_data:/var/lib/postgresql/data
+
+
   minio:
     image: quay.io/minio/minio:latest
     container_name: eventhub_minio
@@ -200,3 +218,4 @@ volumes:
   grafana_data:
   tempo_data:
   kafka_data:
+  notification_db_data:
